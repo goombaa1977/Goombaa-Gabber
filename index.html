@@ -268,14 +268,6 @@
         }
     });
 
-    // Startup Test Message (Confirms ticker is running immediately)
-    setTimeout(function() {
-        addMessageToOverlay({
-            chatname: "Goombaa",
-            chatmessage: "Turtle ticker active and ready!",
-            type: "twitch"
-        });
-    }, 800);
 
     requestAnimationFrame(animate);
 </script>
