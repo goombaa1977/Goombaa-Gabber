@@ -132,8 +132,8 @@
     var password = urlParams.get("password") || urlParams.get("pass") || urlParams.get("pw") || "false";
     
     // Ticker Settings
-    const SCROLL_SPEED = 135; // Pixels per second
-    const MAX_MESSAGES = 10;
+    const SCROLL_SPEED = 120; // Pixels per second
+    const MAX_MESSAGES = 12; // Capped at 12 messages
     
     const tickerTrack = document.getElementById('ticker-track');
     let currentPosX = window.innerWidth;
@@ -177,12 +177,14 @@
     function addMessageToOverlay(data) {
         if (!data) return;
 
-        // Unpack nested payload structures from Social Stream Ninja / WebRTC bridge
+        // Automatically unwrap SSN payload wrappers
         if (data.data) data = data.data;
         if (data.overlayNinja) data = data.overlayNinja;
+        if (data.detail) data = data.detail;
 
-        const name = data.chatname || data.author || data.user || data.name;
-        const msg = data.chatmessage || data.message || data.text;
+        // Flexible field extraction for various platforms
+        const name = data.chatname || data.author || data.user || data.name || data.displayName;
+        const msg = data.chatmessage || data.message || data.text || data.msg;
 
         if (!name && !msg && !data.hasDonation && !data.contentimg) {
             return;
@@ -262,12 +264,11 @@
     socketserver.addEventListener('message', function (event) {
         if (event.data){
             try {
-                var data = JSON.parse(event.data);
-                if (data) { addMessageToOverlay(data); }
+                var rawData = JSON.parse(event.data);
+                addMessageToOverlay(rawData);
             } catch (error) {}
         }
     });
-
 
     requestAnimationFrame(animate);
 </script>
