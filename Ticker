@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goombaa Gab Ticker</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&display=swap">
+    <script src="https://socialstream.ninja/libs/colours.js" type="text/javascript"></script>
+    <style>
+      body, html {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          background-color: transparent;
+          overflow: hidden;
+          box-sizing: border-box;
+      }
+
+      * {
+          box-sizing: border-box;
+          -webkit-font-smoothing: antialiased;
+      }
+
+      #ticker-container {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          overflow: hidden;
+          white-space: nowrap;
+      }
+
+      #ticker-track {
+          display: inline-flex;
+          align-items: center;
+          will-change: transform;
+          white-space: nowrap;
+          position: absolute;
+          left: 0;
+          gap: 20px;
+      }
+
+      /* Seamless Item Flow */
+      .message {
+          background: transparent;
+          padding: 0;
+          border: none;
+          box-shadow: none;
+          color: #e4e6eb;
+          flex-shrink: 0;
+          display: inline-flex;
+          align-items: center;
+          white-space: nowrap;
+      }
+
+      .avatar-wrapper {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: inline-block;
+          margin-right: 8px;
+          flex-shrink: 0;
+          background: #4ab8f9;
+          padding: 2px;
+      }
+
+      .avatar {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background-size: cover;
+          background-position: center;
+      }
+
+      .message-content-wrapper {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+      }
+
+      .name {
+          color: #4ab8f9;
+          font-size: 26px;
+          font-weight: 800;
+          line-height: 1;
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      }
+
+      .text {
+          font-size: 26px;
+          line-height: 1;
+          font-weight: 600;
+          color: #ffffff;
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      }
+
+      .turtle-shell-icon {
+          width: 26px;
+          height: 26px;
+          flex-shrink: 0;
+          vertical-align: middle;
+          filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.7));
+      }
+
+      .badge {
+          display: inline-block;
+          height: 22px;
+      }
+
+      .separator {
+          font-size: 26px;
+          margin-left: 15px;
+          margin-right: 5px;
+          color: #ff9d00;
+      }
+    </style>
+</head>
+<body>
+
+<div id="ticker-container">
+    <div id="ticker-track"></div>
+</div>
+
+<script>
+    var urlParams = new URLSearchParams(window.location.search);
+    var roomID = urlParams.get("session") || "aFC6DXe5k2";
+    var password = urlParams.get("password") || urlParams.get("pass") || urlParams.get("pw") || "false";
+    
+    // Ticker Settings
+    const SCROLL_SPEED = 120; // Pixels per second
+    const MAX_MESSAGES = 30;
+    
+    const tickerTrack = document.getElementById('ticker-track');
+    let currentPosX = window.innerWidth;
+    let lastTimestamp = null;
+
+    // Custom Turtle Shell SVG Generator based on platform
+    function getTurtleShellSVG(platformType) {
+        const type = String(platformType || "").toLowerCase();
+        
+        let primaryColor = "#4CD137"; // Green default
+        let detailColor = "#2ED573";
+
+        if (type.includes("twitch")) {
+            primaryColor = "#9146FF"; // Purple Shell
+            detailColor = "#B9A2FF";
+        } else if (type.includes("youtube")) {
+            primaryColor = "#FF0000"; // Red Shell
+            detailColor = "#FF6B6B";
+        } else if (type.includes("tiktok")) {
+            primaryColor = "#111111"; // Black Shell
+            detailColor = "#00F2FE"; // Neon TikTok Cyan accent line
+        }
+
+        return `
+            <svg class="turtle-shell-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- Shell Base Outer Outline -->
+                <ellipse cx="50" cy="50" rx="45" ry="40" fill="${primaryColor}" stroke="#FFFFFF" stroke-width="4" />
+                <!-- Shell Ridge Pattern Line 1 -->
+                <polygon points="50,20 68,32 68,55 50,67 32,55 32,32" fill="none" stroke="${detailColor}" stroke-width="5" />
+                <!-- Shell Ridge Pattern Line 2 -->
+                <line x1="50" y1="20" x2="50" y2="10" stroke="${detailColor}" stroke-width="4" />
+                <line x1="68" y1="32" x2="85" y2="28" stroke="${detailColor}" stroke-width="4" />
+                <line x1="68" y1="55" x2="85" y2="60" stroke="${detailColor}" stroke-width="4" />
+                <line x1="50" y1="67" x2="50" y2="88" stroke="${detailColor}" stroke-width="4" />
+                <line x1="32" y1="55" x2="15" y2="60" stroke="${detailColor}" stroke-width="4" />
+                <line x1="32" y1="32" x2="15" y2="28" stroke="${detailColor}" stroke-width="4" />
+            </svg>
+        `;
+    }
+
+    function addMessageToOverlay(data) {
+        if (!data.chatname && !data.chatmessage && !data.hasDonation && !data.contentimg){
+            return;
+        }
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message');
+        
+        var chatbadgesHtml = "";
+        if (data.chatbadges) {
+            data.chatbadges.forEach(badge => {
+                if (typeof badge === "object" && badge.src) {
+                    chatbadgesHtml += `<img class='badge' src='${badge.src}' alt='badge'>`;
+                } else if (typeof badge === "string") { 
+                    chatbadgesHtml += `<img class='badge' src='${badge}' alt='badge'>`;
+                }
+            });
+        }
+        
+        const shellIconHtml = getTurtleShellSVG(data.type);
+        const avatarHtml = data.chatimg ? `<div class="avatar-wrapper"><div class="avatar" style="background-image: url('${data.chatimg}');"></div></div>` : '';
+        const nameHtml = data.chatname ? `<span class="name">${data.chatname}:</span>` : '';
+        const messageTextHtml = data.chatmessage ? `<span class="text">${data.chatmessage}</span>` : '';
+
+        messageDiv.innerHTML = `
+            <div class="message-content-wrapper">
+                ${avatarHtml}
+                ${shellIconHtml}${nameHtml}
+                ${chatbadgesHtml}${messageTextHtml}
+                <span class="separator">🔥</span>
+            </div>
+        `;
+        tickerTrack.appendChild(messageDiv);
+        
+        while (tickerTrack.children.length > MAX_MESSAGES) {
+            tickerTrack.removeChild(tickerTrack.firstChild);
+        }
+    }
+
+    // Continuous Animation Loop
+    function animate(timestamp) {
+        if (!lastTimestamp) lastTimestamp = timestamp;
+        const delta = (timestamp - lastTimestamp) / 1000;
+        lastTimestamp = timestamp;
+
+        currentPosX -= SCROLL_SPEED * delta;
+
+        const trackWidth = tickerTrack.offsetWidth;
+        if (currentPosX < -trackWidth && trackWidth > 0) {
+            currentPosX = window.innerWidth;
+        }
+
+        tickerTrack.style.transform = `translateX(${currentPosX}px)`;
+        requestAnimationFrame(animate);
+    }
+
+    // Direct WebRTC/Iframe Bridge Connection
+    var iframe = document.createElement("iframe");
+    iframe.src = "https://vdo.socialstream.ninja/?ln&salt=vdo.ninja&password="+encodeURIComponent(password)+"&push&label=dock&vd=0&ad=0&novideo&noaudio&autostart&cleanoutput&room="+roomID;
+    iframe.style.cssText = "width: 0px; height: 0px; position: fixed; left: -100px; top: -100px;";
+    document.body.appendChild(iframe);
+    
+    window.addEventListener("message", function (e) {
+        if (e.source != iframe.contentWindow) return;
+        if (e.data && typeof e.data === "object" && e.data.dataReceived && e.data.dataReceived.overlayNinja) {
+            addMessageToOverlay(e.data.dataReceived.overlayNinja);
+        }
+    });
+
+    // Social Stream Ninja WebSocket Connection
+    var socketserver = new WebSocket("wss://io.socialstream.ninja");
+    socketserver.onopen = function (){
+        socketserver.send(JSON.stringify({"join": roomID, "out": 3, "in": 4}));
+    };
+    socketserver.addEventListener('message', function (event) {
+        if (event.data){
+            try {
+                var data = JSON.parse(event.data);
+                if (data) { addMessageToOverlay(data); }
+            } catch (error) {}
+        }
+    });
+
+    requestAnimationFrame(animate);
+</script>
+</body>
+</html>
