@@ -45,7 +45,6 @@
           gap: 20px;
       }
 
-      /* Seamless Item Flow */
       .message {
           background: transparent;
           padding: 0;
@@ -129,41 +128,35 @@
 <script>
     var urlParams = new URLSearchParams(window.location.search);
     var roomID = urlParams.get("session") || "aFC6DXe5k2";
-    var password = urlParams.get("password") || urlParams.get("pass") || urlParams.get("pw") || "false";
     
-    // Ticker Settings
-    const SCROLL_SPEED = 120; // Pixels per second
-    const MAX_MESSAGES = 12; // Capped at 12 messages
+    const SCROLL_SPEED = 120;
+    const MAX_MESSAGES = 12;
     
     const tickerTrack = document.getElementById('ticker-track');
     let currentPosX = window.innerWidth;
     let lastTimestamp = null;
 
-    // Custom Turtle Shell SVG Generator based on platform
     function getTurtleShellSVG(platformType) {
         const type = String(platformType || "").toLowerCase();
         
-        let primaryColor = "#4CD137"; // Green default
+        let primaryColor = "#4CD137";
         let detailColor = "#2ED573";
 
         if (type.includes("twitch")) {
-            primaryColor = "#9146FF"; // Purple Shell
+            primaryColor = "#9146FF";
             detailColor = "#B9A2FF";
         } else if (type.includes("youtube")) {
-            primaryColor = "#FF0000"; // Red Shell
+            primaryColor = "#FF0000";
             detailColor = "#FF6B6B";
         } else if (type.includes("tiktok")) {
-            primaryColor = "#111111"; // Black Shell
-            detailColor = "#00F2FE"; // Neon TikTok Cyan accent line
+            primaryColor = "#111111";
+            detailColor = "#00F2FE";
         }
 
         return `
             <svg class="turtle-shell-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <!-- Shell Base Outer Outline -->
                 <ellipse cx="50" cy="50" rx="45" ry="40" fill="${primaryColor}" stroke="#FFFFFF" stroke-width="4" />
-                <!-- Shell Ridge Pattern Line 1 -->
                 <polygon points="50,20 68,32 68,55 50,67 32,55 32,32" fill="none" stroke="${detailColor}" stroke-width="5" />
-                <!-- Shell Ridge Pattern Line 2 -->
                 <line x1="50" y1="20" x2="50" y2="10" stroke="${detailColor}" stroke-width="4" />
                 <line x1="68" y1="32" x2="85" y2="28" stroke="${detailColor}" stroke-width="4" />
                 <line x1="68" y1="55" x2="85" y2="60" stroke="${detailColor}" stroke-width="4" />
@@ -177,18 +170,14 @@
     function addMessageToOverlay(data) {
         if (!data) return;
 
-        // Automatically unwrap SSN payload wrappers
         if (data.data) data = data.data;
         if (data.overlayNinja) data = data.overlayNinja;
         if (data.detail) data = data.detail;
 
-        // Flexible field extraction for various platforms
         const name = data.chatname || data.author || data.user || data.name || data.displayName;
         const msg = data.chatmessage || data.message || data.text || data.msg;
 
-        if (!name && !msg && !data.hasDonation && !data.contentimg) {
-            return;
-        }
+        if (!name && !msg) return;
 
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message');
@@ -226,7 +215,6 @@
         }
     }
 
-    // Continuous Animation Loop
     function animate(timestamp) {
         if (!lastTimestamp) lastTimestamp = timestamp;
         const delta = (timestamp - lastTimestamp) / 1000;
@@ -243,20 +231,7 @@
         requestAnimationFrame(animate);
     }
 
-    // Direct WebRTC/Iframe Bridge Connection
-    var iframe = document.createElement("iframe");
-    iframe.src = "https://vdo.socialstream.ninja/?ln&salt=vdo.ninja&password="+encodeURIComponent(password)+"&push&label=dock&vd=0&ad=0&novideo&noaudio&autostart&cleanoutput&room="+roomID;
-    iframe.style.cssText = "width: 0px; height: 0px; position: fixed; left: -100px; top: -100px;";
-    document.body.appendChild(iframe);
-    
-    window.addEventListener("message", function (e) {
-        if (e.source != iframe.contentWindow) return;
-        if (e.data && typeof e.data === "object" && e.data.dataReceived) {
-            addMessageToOverlay(e.data.dataReceived);
-        }
-    });
-
-    // Social Stream Ninja WebSocket Connection
+    // Connect via Social Stream Ninja WebSocket Server
     var socketserver = new WebSocket("wss://io.socialstream.ninja");
     socketserver.onopen = function (){
         socketserver.send(JSON.stringify({"join": roomID, "out": 3, "in": 4}));
@@ -267,6 +242,13 @@
                 var rawData = JSON.parse(event.data);
                 addMessageToOverlay(rawData);
             } catch (error) {}
+        }
+    });
+
+    // Listen to Local Broadcast Events from Extension / App
+    window.addEventListener("message", function (e) {
+        if (e.data) {
+            addMessageToOverlay(e.data);
         }
     });
 
